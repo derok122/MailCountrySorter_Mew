@@ -1,0 +1,17 @@
+venv/
+dist/
+build/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.spec
+*.log
+*.key
+*.pfx
+*.egg-info/
+/.venv/
+/.pytest_cache/
+.cache/
+Tld.map
+Country.mmdb
