@@ -1,0 +1,6 @@
+alice@example.com
+bob@example.co.uk
+carla@domain.br
+daniel@sub.domain.au
+eve@unknown.tld
+noatsymbol

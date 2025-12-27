@@ -1,0 +1,6 @@
+# Dependências
+tldextract
+# opcional para empacotar em EXE
+pyinstaller
+geoip2
+

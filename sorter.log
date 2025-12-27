@@ -1,0 +1,3 @@
+2025-12-26 21:43:52,976 INFO: Começando processamento — threads=300
+2025-12-26 21:43:55,442 INFO: CSV gravado em output_test_venv\emails_by_country.csv
+2025-12-26 21:43:55,442 INFO: Processados: 6 e-mails — 4 grupos em output_test_venv
