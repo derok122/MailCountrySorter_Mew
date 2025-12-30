@@ -149,6 +149,7 @@ def write_output(results: dict, outdir: Path, fmt: str = 'files'):
 def main():
     parser = argparse.ArgumentParser(description='Mail Country Sorter — agrupa e-mails por país via TLD')
     parser.add_argument('--input', '-i', type=Path, help='Arquivo de entrada com e-mails (uma linha por e-mail)', required=True)
+    parser.add_argument('--input-dir', type=Path, help='Diretório para escolher um arquivo .txt de entrada (lista arquivos .txt e permite escolher)')
     parser.add_argument('--tld-map', '-m', type=Path, default=Path('Tld.map'), help='Arquivo Tld.map')
     parser.add_argument('--settings', '-s', type=Path, default=Path('Setting.ini'), help='Arquivo de configuração (Setting.ini)')
     parser.add_argument('--output', '-o', type=Path, default=Path('output'), help='Diretório de saída')
@@ -159,7 +160,34 @@ def main():
     parser.add_argument('--mmdb', type=Path, default=Path('Country.mmdb'), help='Caminho para Country.mmdb (padrão: Country.mmdb)')
     args = parser.parse_args()
 
-    if not args.input.exists():
+    # If input not provided but input-dir is, let user pick a .txt file from the directory
+    if not args.input and args.input_dir:
+        d = args.input_dir
+        if not d.exists() or not d.is_dir():
+            print('Diretório não encontrado:', d)
+            sys.exit(1)
+        txts = sorted([p for p in d.glob('*.txt')])
+        if not txts:
+            print('Nenhum arquivo .txt encontrado em', d)
+            sys.exit(1)
+        if len(txts) == 1 or not sys.stdin.isatty():
+            chosen = txts[0]
+            print('Usando arquivo:', chosen)
+        else:
+            print('Escolha um arquivo de entrada:')
+            for idx, p in enumerate(txts, start=1):
+                print(f'{idx}) {p.name}')
+            try:
+                sel = input('Número do arquivo: ').strip()
+                n = int(sel) if sel else 1
+            except Exception:
+                n = 1
+            n = max(1, min(n, len(txts)))
+            chosen = txts[n-1]
+            print('Usando arquivo:', chosen)
+        args.input = chosen
+
+    if not args.input or not args.input.exists():
         print('Arquivo de entrada não encontrado:', args.input)
         sys.exit(1)
 
