@@ -38,12 +38,22 @@ jobs:
         python -m PyInstaller --onefile --name EMailCountrySorter --add-data "Tld.map;." --add-data "Setting.ini;." --add-data "Country.mmdb;." $iconArg mail_country_sorter.py
 
     - name: Prepare PFX (from secret)
-      if: ${{ secrets.PFX_BASE64 && secrets.PFX_PASSWORD }}
       env:
         PFX_BASE64: ${{ secrets.PFX_BASE64 }}
+        PFX_PASSWORD: ${{ secrets.PFX_PASSWORD }}
       run: |
-        $bytes = [System.Convert]::FromBase64String("$env:PFX_BASE64")
-        [System.IO.File]::WriteAllBytes('cert.pfx', $bytes)
+        if (-not $env:PFX_BASE64) {
+          Write-Host "PFX_BASE64 secret missing or empty — skipping PFX preparation."
+        } else {
+          try {
+            $bytes = [System.Convert]::FromBase64String($env:PFX_BASE64)
+            [System.IO.File]::WriteAllBytes('cert.pfx', $bytes)
+            Write-Host "Wrote cert.pfx"
+          } catch {
+            Write-Warning "Failed to decode PFX_BASE64: $_"
+            exit 1
+          }
+        }
 
     - name: Sign EXE
       env:
