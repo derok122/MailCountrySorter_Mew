@@ -148,7 +148,7 @@ def write_output(results: dict, outdir: Path, fmt: str = 'files'):
 
 def main():
     parser = argparse.ArgumentParser(description='Mail Country Sorter — agrupa e-mails por país via TLD')
-    parser.add_argument('--input', '-i', type=Path, help='Arquivo de entrada com e-mails (uma linha por e-mail)', required=True)
+    parser.add_argument('--input', '-i', type=Path, help='Arquivo de entrada com e-mails (uma linha por e-mail)')
     parser.add_argument('--input-dir', type=Path, help='Diretório para escolher um arquivo .txt de entrada (lista arquivos .txt e permite escolher)')
     parser.add_argument('--tld-map', '-m', type=Path, default=Path('Tld.map'), help='Arquivo Tld.map')
     parser.add_argument('--settings', '-s', type=Path, default=Path('Setting.ini'), help='Arquivo de configuração (Setting.ini)')
