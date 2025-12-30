@@ -29,11 +29,24 @@ if ($IconPath) {
 	}
 }
 
-$addData = "--add-data `"Tld.map;.\`" --add-data `"Setting.ini;.\`" --add-data `"Country.mmdb;.\`""
+$addData = @(
+	"--add-data", "Tld.map;.",
+	"--add-data", "Setting.ini;.",
+	"--add-data", "Country.mmdb;."
+)
 
-$pyCmd = ".\venv\Scripts\python -m PyInstaller --onefile --name EMailCountrySorter $addData $iconArg mail_country_sorter.py"
-Write-Host "Executando: $pyCmd"
-Invoke-Expression $pyCmd
+# Build argument list for PyInstaller
+$pyArgs = @("-m", "PyInstaller", "--onefile", "--name", "EMailCountrySorter") + $addData
+if ($iconArg) { $pyArgs += $iconArg }
+$pyArgs += "mail_country_sorter.py"
+
+Write-Host "Executando: .\venv\Scripts\python $($pyArgs -join ' ')"
+try {
+	& .\venv\Scripts\python @pyArgs 2>&1 | ForEach-Object { Write-Host $_ }
+} catch {
+	Write-Error "Falha ao executar PyInstaller: $_"
+	exit 1
+}
 
 $exePath = Join-Path $projRoot "dist\EMailCountrySorter.exe"
 if (-Not (Test-Path $exePath)) {
@@ -53,16 +66,22 @@ if ($PfxPath) {
 			Write-Warning "signtool não encontrado no PATH — não foi possível assinar o EXE. Instale Windows SDK ou disponibilize signtool.exe no PATH."
 		} else {
 			Write-Host "Assinando EXE com PFX: $PfxPath"
-			$passArg = $null
-			if ($PfxPassword) { $passArg = "-p `"$PfxPassword`"" }
-			$tsArg = "-tr $TimestampUrl -td sha256"
-			$signCmd = "& `"$signtool`" sign /f `"$PfxPath`" $passArg /fd SHA256 $tsArg `"$exePath`""
-			Write-Host "Executando: $signCmd"
+			$signtoolArgs = @("sign", "/f", $PfxPath, "/fd", "SHA256")
+			if ($PfxPassword) { $signtoolArgs += "/p"; $signtoolArgs += $PfxPassword }
+			if ($TimestampUrl) { $signtoolArgs += "/tr"; $signtoolArgs += $TimestampUrl; $signtoolArgs += "/td"; $signtoolArgs += "sha256" }
+			$signtoolArgs += $exePath
+
+			Write-Host "Executando signtool: $signtool $($signtoolArgs -join ' ')"
 			try {
-				Invoke-Expression $signCmd
+				$proc = Start-Process -FilePath $signtool -ArgumentList $signtoolArgs -NoNewWindow -Wait -PassThru -ErrorAction Stop
+				if ($proc.ExitCode -ne 0) {
+					Write-Warning "signtool retornou código $($proc.ExitCode)"
+					exit $proc.ExitCode
+				}
 				Write-Host "Assinatura concluída."
 			} catch {
-				Write-Warning "Assinatura falhou: $_"
+				Write-Warning "Assinatura com signtool falhou: $_"
+				exit 1
 			}
 		}
 	}
