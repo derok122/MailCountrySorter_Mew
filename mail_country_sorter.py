@@ -195,6 +195,36 @@ def main():
             chosen = txts[n-1]
             print('Usando arquivo:', chosen)
         args.input = chosen
+    
+    # Se nenhum input foi fornecido, buscar arquivos .txt no diretório atual
+    if not args.input:
+        current_dir = Path.cwd()
+        txts = sorted([p for p in current_dir.glob('*.txt') if p.is_file()])
+        if not txts:
+            print('\nNenhum arquivo .txt encontrado no diretório atual.')
+            print('Use: EMailCountrySorter.exe -i arquivo.txt')
+            print('Ou coloque um arquivo .txt no mesmo diretório do programa.')
+            sys.exit(1)
+        
+        print('\n=== MAIL COUNTRY SORTER ===\n')
+        print('Arquivos .txt encontrados no diretório atual:\n')
+        for idx, p in enumerate(txts, start=1):
+            size_kb = p.stat().st_size / 1024
+            print(f'{idx}) {p.name} ({size_kb:.1f} KB)')
+        
+        print()
+        try:
+            sel = input('Escolha o número do arquivo para processar [1]: ').strip()
+            n = int(sel) if sel else 1
+        except Exception:
+            n = 1
+        
+        if n < 1 or n > len(txts):
+            print(f'Opção inválida. Usando o primeiro arquivo.')
+            n = 1
+        
+        args.input = txts[n-1]
+        print(f'\nArquivo selecionado: {args.input.name}\n')
 
     if not args.input or not args.input.exists():
         print('Arquivo de entrada não encontrado:', args.input)
