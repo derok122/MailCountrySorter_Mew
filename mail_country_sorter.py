@@ -211,6 +211,10 @@ def main():
     total = sum(len(v) for v in results.values())
     logging.info('Processados: %d e-mails — %d grupos em %s', total, len(results), args.output)
     print(f'Processados: {total} e-mails — {len(results)} grupos gerados em "{args.output}"')
+    
+    # Pause antes de fechar quando executado como EXE
+    if getattr(sys, 'frozen', False):
+        input('\nPressione ENTER para fechar...')
 
 
 if __name__ == '__main__':
