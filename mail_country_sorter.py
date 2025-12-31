@@ -10,6 +10,7 @@ import threading
 import csv
 import logging
 import socket
+from datetime import datetime
 try:
     import tldextract
 except Exception:
@@ -125,8 +126,14 @@ def process_emails(lines, tld_map, max_workers, use_geoip=False, mmdb_path: Path
     return results
 
 
-def write_output(results: dict, outdir: Path, fmt: str = 'files'):
+def write_output(results: dict, outdir: Path, fmt: str = 'files', create_timestamped_folder: bool = True):
+    # Criar pasta com timestamp: Result_YYYY-MM-DD_HHMMSS
+    if create_timestamped_folder:
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+        outdir = outdir / f"Result_{timestamp}"
+    
     outdir.mkdir(parents=True, exist_ok=True)
+    
     if fmt == 'csv':
         csv_path = outdir / 'emails_by_country.csv'
         with csv_path.open('w', encoding='utf-8', newline='') as f:
@@ -136,7 +143,7 @@ def write_output(results: dict, outdir: Path, fmt: str = 'files'):
                 for e in emails:
                     writer.writerow([e, country])
         logging.info('CSV gravado em %s', csv_path)
-        return
+        return outdir
 
     for country, emails in results.items():
         name = sanitize_filename(country)
@@ -144,6 +151,8 @@ def write_output(results: dict, outdir: Path, fmt: str = 'files'):
         with path.open('w', encoding='utf-8') as f:
             for e in emails:
                 f.write(e.rstrip('\n') + '\n')
+    
+    return outdir
 
 
 def main():
@@ -206,11 +215,19 @@ def main():
     logging.info('Começando processamento — threads=%s geoip=%s', threads, args.geoip)
     results = process_emails(lines, tld_map, max_workers=threads, use_geoip=args.geoip, mmdb_path=args.mmdb)
 
-    write_output(results, args.output, fmt=args.format)
+    final_output = write_output(results, args.output, fmt=args.format)
 
     total = sum(len(v) for v in results.values())
-    logging.info('Processados: %d e-mails — %d grupos em %s', total, len(results), args.output)
-    print(f'Processados: {total} e-mails — {len(results)} grupos gerados em "{args.output}"')
+    logging.info('Processados: %d e-mails — %d grupos em %s', total, len(results), final_output)
+    print(f'\nProcessados: {total} e-mails — {len(results)} grupos (países) gerados')
+    print(f'Pasta de saída: {final_output}')
+    print(f'\nArquivos criados:')
+    if args.format == 'csv':
+        print(f'  - emails_by_country.csv')
+    else:
+        for country in sorted(results.keys()):
+            name = sanitize_filename(country)
+            print(f'  - {name}.txt ({len(results[country])} emails)')
     
     # Pause antes de fechar quando executado como EXE
     if getattr(sys, 'frozen', False):
