@@ -218,4 +218,17 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except SystemExit as e:
+        # Captura sys.exit() para mostrar pause antes de fechar
+        if getattr(sys, 'frozen', False):
+            print(f'\nPrograma encerrado com código: {e.code}')
+            input('Pressione ENTER para fechar...')
+        raise
+    except Exception as e:
+        # Captura qualquer erro e mostra antes de fechar
+        print(f'\nErro: {e}')
+        if getattr(sys, 'frozen', False):
+            input('Pressione ENTER para fechar...')
+        raise
