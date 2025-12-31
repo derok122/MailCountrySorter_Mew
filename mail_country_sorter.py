@@ -50,6 +50,31 @@ def load_settings(path: Path):
     return res
 
 
+# Provedores de email genéricos/externos (não indicam localização real da empresa)
+GENERIC_EMAIL_PROVIDERS = {
+    # Google
+    'gmail.com', 'googlemail.com',
+    # Microsoft
+    'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'outlook.pt', 'outlook.com.br',
+    'hotmail.pt', 'hotmail.com.br', 'hotmail.co.uk', 'live.pt', 'live.com.br',
+    # Yahoo
+    'yahoo.com', 'yahoo.com.br', 'yahoo.pt', 'ymail.com', 'rocketmail.com',
+    # Outros populares
+    'aol.com', 'icloud.com', 'me.com', 'mac.com', 'protonmail.com', 'proton.me',
+    'mail.com', 'gmx.com', 'gmx.net', 'zoho.com', 'tutanota.com',
+    # Provedores brasileiros genéricos
+    'bol.com.br', 'ig.com.br', 'terra.com.br', 'zipmail.com.br',
+    # Provedores portugueses genéricos
+    'sapo.pt', 'clix.pt', 'iol.pt',
+}
+
+
+def is_generic_provider(domain: str) -> bool:
+    """Verifica se o domínio é de um provedor de email genérico."""
+    domain = domain.lower().strip()
+    return domain in GENERIC_EMAIL_PROVIDERS
+
+
 def find_country_for_domain(domain: str, tld_map: dict):
     domain = domain.lower().strip()
     domain = re.split(r'[:/]', domain)[0]
@@ -81,7 +106,7 @@ def sanitize_filename(s: str):
     return re.sub(r"[^0-9A-Za-z\-_. ]+", "_", s).strip() or 'unknown'
 
 
-def process_emails(lines, tld_map, max_workers, use_geoip=False, mmdb_path: Path = None):
+def process_emails(lines, tld_map, max_workers, use_geoip=False, mmdb_path: Path = None, separate_generic_providers=False):
     results = defaultdict(list)
     lock = threading.Lock()
     geoip_reader = None
@@ -101,6 +126,13 @@ def process_emails(lines, tld_map, max_workers, use_geoip=False, mmdb_path: Path
                 results['unknown'].append(line)
             return
         _, domain = line.rsplit('@', 1)
+        
+        # Separar provedores genéricos se solicitado
+        if separate_generic_providers and is_generic_provider(domain):
+            with lock:
+                results['_generic_providers'].append(line)
+            return
+        
         country = find_country_for_domain(domain, tld_map)
         # fallback to GeoIP lookup by resolving domain
         if not country and use_geoip and geoip_reader:
@@ -167,6 +199,8 @@ def main():
     parser.add_argument('--log', default=None, help='Arquivo de log (opcional)')
     parser.add_argument('--no-geoip', action='store_true', help='Desabilita fallback GeoIP (ativado por padrão se Country.mmdb existir)')
     parser.add_argument('--mmdb', type=Path, default=Path('Country.mmdb'), help='Caminho para Country.mmdb (padrão: Country.mmdb)')
+    parser.add_argument('--separate-generic', action='store_true', default=True, help='Separa emails de provedores genéricos (Gmail, Outlook, etc.) em arquivo próprio (ativado por padrão)')
+    parser.add_argument('--no-separate-generic', dest='separate_generic', action='store_false', help='Desabilita separação de provedores genéricos')
     args = parser.parse_args()
     
     # Ativar GeoIP por padrão se Country.mmdb existir e geoip2 estiver disponível
@@ -252,14 +286,14 @@ def main():
 
     lines = args.input.read_text(encoding='utf-8', errors='ignore').splitlines()
 
-    logging.info('Começando processamento — threads=%s geoip=%s', threads, use_geoip)
-    results = process_emails(lines, tld_map, max_workers=threads, use_geoip=use_geoip, mmdb_path=args.mmdb)
+    logging.info('Começando processamento — threads=%s geoip=%s separate_generic=%s', threads, use_geoip, args.separate_generic)
+    results = process_emails(lines, tld_map, max_workers=threads, use_geoip=use_geoip, mmdb_path=args.mmdb, separate_generic_providers=args.separate_generic)
 
     final_output = write_output(results, args.output, fmt=args.format)
 
     total = sum(len(v) for v in results.values())
     logging.info('Processados: %d e-mails — %d grupos em %s', total, len(results), final_output)
-    print(f'\nProcessados: {total} e-mails — {len(results)} grupos (países) gerados')
+    print(f'\nProcessados: {total} e-mails — {len(results)} grupos gerados')
     print(f'Pasta de saída: {final_output}')
     print(f'\nArquivos criados:')
     if args.format == 'csv':
@@ -267,7 +301,10 @@ def main():
     else:
         for country in sorted(results.keys()):
             name = sanitize_filename(country)
-            print(f'  - {name}.txt ({len(results[country])} emails)')
+            if country == '_generic_providers':
+                print(f'  - {name}.txt ({len(results[country])} emails) [Provedores genéricos: Gmail, Outlook, etc.]')
+            else:
+                print(f'  - {name}.txt ({len(results[country])} emails)')
     
     # Pause antes de fechar quando executado como EXE
     if getattr(sys, 'frozen', False):
