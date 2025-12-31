@@ -165,9 +165,19 @@ def main():
     parser.add_argument('--threads', '-t', type=int, help='Quantidade de threads (override)')
     parser.add_argument('--format', '-f', choices=['files', 'csv'], default='files', help='Formato de saída: files (um arquivo por país) ou csv (um arquivo CSV)')
     parser.add_argument('--log', default=None, help='Arquivo de log (opcional)')
-    parser.add_argument('--geoip', action='store_true', help='Habilita fallback GeoIP usando Country.mmdb (resolve domínios para IPs)')
+    parser.add_argument('--no-geoip', action='store_true', help='Desabilita fallback GeoIP (ativado por padrão se Country.mmdb existir)')
     parser.add_argument('--mmdb', type=Path, default=Path('Country.mmdb'), help='Caminho para Country.mmdb (padrão: Country.mmdb)')
     args = parser.parse_args()
+    
+    # Ativar GeoIP por padrão se Country.mmdb existir e geoip2 estiver disponível
+    use_geoip = not args.no_geoip and args.mmdb.exists() and geoip2 is not None
+    if use_geoip:
+        print('✓ GeoIP ativado (geolocalização precisa por IP)')
+    else:
+        if args.mmdb.exists() and geoip2 is None:
+            print('⚠ GeoIP desabilitado: biblioteca geoip2 não instalada')
+        elif not args.mmdb.exists():
+            print('⚠ GeoIP desabilitado: Country.mmdb não encontrado')
 
     # If input not provided but input-dir is, let user pick a .txt file from the directory
     if not args.input and args.input_dir:
@@ -242,8 +252,8 @@ def main():
 
     lines = args.input.read_text(encoding='utf-8', errors='ignore').splitlines()
 
-    logging.info('Começando processamento — threads=%s geoip=%s', threads, args.geoip)
-    results = process_emails(lines, tld_map, max_workers=threads, use_geoip=args.geoip, mmdb_path=args.mmdb)
+    logging.info('Começando processamento — threads=%s geoip=%s', threads, use_geoip)
+    results = process_emails(lines, tld_map, max_workers=threads, use_geoip=use_geoip, mmdb_path=args.mmdb)
 
     final_output = write_output(results, args.output, fmt=args.format)
 
