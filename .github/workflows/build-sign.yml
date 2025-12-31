@@ -4,7 +4,7 @@ name: Build and Sign EMailCountrySorter
 'on':
   push:
     tags: ['v*', 'release-*']
-  workflow_dispatch: true
+  workflow_dispatch:
 
 jobs:
   build-sign:
